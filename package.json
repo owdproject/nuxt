@@ -1,0 +1,147 @@
+{
+  "name": "@owdproject/nuxt",
+  "version": "4.0.0-alpha.3",
+  "description": "Official Nuxt & Vue desktop engine for OpenWebDesktop",
+  "homepage": "https://github.com/owdproject/nuxt#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owdproject/nuxt.git"
+  },
+  "author": {
+    "name": "Diego Villa (@dxlliv)",
+    "url": "https://github.com/dxlliv"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/module.mjs",
+  "module": "./dist/module.mjs",
+  "types": "./dist/types.d.mts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.mts",
+      "import": "./dist/module.mjs",
+      "default": "./dist/module.mjs"
+    },
+    "./package.json": "./package.json",
+    "./kit": {
+      "types": "./dist/kit/authoring.d.ts",
+      "import": "./dist/kit/authoring.js",
+      "default": "./dist/kit/authoring.js"
+    },
+    "./kit/defineDesktopApp": {
+      "types": "./dist/kit/defineDesktopApp.d.ts",
+      "import": "./dist/kit/defineDesktopApp.js",
+      "default": "./dist/kit/defineDesktopApp.js"
+    },
+    "./kit/defineDesktopPlugin": {
+      "types": "./dist/kit/defineDesktopPlugin.d.ts",
+      "import": "./dist/kit/defineDesktopPlugin.js",
+      "default": "./dist/kit/defineDesktopPlugin.js"
+    },
+    "./kit/defineDesktopTheme": {
+      "types": "./dist/kit/authoring.d.ts",
+      "import": "./dist/kit/authoring.js",
+      "default": "./dist/kit/authoring.js"
+    },
+    "./kit/defineDesktopConfig": {
+      "types": "./dist/kit/authoring.d.ts",
+      "import": "./dist/kit/authoring.js",
+      "default": "./dist/kit/authoring.js"
+    },
+    "./kit/*": {
+      "types": "./dist/kit/*.d.ts",
+      "import": "./dist/kit/*.js",
+      "default": "./dist/kit/*.js"
+    },
+    "./runtime/composables/*": {
+      "types": "./dist/runtime/composables/*.d.ts",
+      "import": "./dist/runtime/composables/*.js",
+      "default": "./dist/runtime/composables/*.js"
+    },
+    "./runtime/constants/*": {
+      "types": "./dist/runtime/constants/*.d.ts",
+      "import": "./dist/runtime/constants/*.js",
+      "default": "./dist/runtime/constants/*.js"
+    },
+    "./runtime/dialogs/*": {
+      "types": "./dist/runtime/dialogs/*.d.ts",
+      "import": "./dist/runtime/dialogs/*.js",
+      "default": "./dist/runtime/dialogs/*.js"
+    },
+    "./runtime/utils/*": {
+      "types": "./dist/runtime/utils/*.d.ts",
+      "import": "./dist/runtime/utils/*.js",
+      "default": "./dist/runtime/utils/*.js"
+    },
+    "./runtime/stores/*": {
+      "types": "./dist/runtime/stores/*.d.ts",
+      "import": "./dist/runtime/stores/*.js",
+      "default": "./dist/runtime/stores/*.js"
+    },
+    "./runtime/components/*": {
+      "types": "./dist/runtime/components/*.vue.d.ts",
+      "import": "./dist/runtime/components/*.vue",
+      "default": "./dist/runtime/components/*.vue"
+    },
+    "./runtime/types/*": {
+      "types": "./dist/runtime/types/*.d.ts",
+      "import": "./dist/runtime/types/*.js",
+      "default": "./dist/runtime/types/*.js"
+    },
+    "./runtime/*": {
+      "types": "./dist/runtime/*.d.ts",
+      "import": "./dist/runtime/*.js",
+      "default": "./dist/runtime/*.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      ".": [
+        "./dist/types.d.mts"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "nuxt-module-build build && node ./scripts/post-build-pkg-nuxt.mjs",
+    "prepack": "nuxt-module-build build && node ./scripts/post-build-pkg-nuxt.mjs"
+  },
+  "dependencies": {
+    "@nuxt/fonts": "^1.2.0",
+    "@nuxt/icon": "^2.6.1",
+    "@nuxt/kit": "^4.6.2",
+    "@nuxtjs/i18n": "^10.6.0",
+    "@owdproject/core": "^4.0.0-alpha.3",
+    "@pinia/nuxt": "^1.0.3",
+    "@vueuse/components": "^15.0.0",
+    "@vueuse/core": "^15.0.0",
+    "@vueuse/nuxt": "^15.0.0",
+    "defu": "^6.1.7",
+    "getopts": "^2.3.0",
+    "hookable": "^6.1.2",
+    "nanoid": "^6.0.2",
+    "pinia": "^4.1.0",
+    "sanitize.css": "^13.0.0",
+    "sass": "^1.106.1",
+    "shellwords": "^1.1.1",
+    "three": "^0.186.1",
+    "xstate": "^5.33.3"
+  },
+  "peerDependencies": {
+    "nuxt": ">=3.0.0 || >=4.0.0",
+    "vue": ">=3.3.0"
+  },
+  "peerDependenciesMeta": {
+    "nuxt": {
+      "optional": true
+    }
+  }
+}

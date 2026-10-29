@@ -1,0 +1,15 @@
+node_modules
+dist
+.nuxt
+.output
+.data
+.temp
+.tmp
+.cache
+*.log
+
+# dev symlinks
+/kit
+/runtime
+/types
+
