@@ -33,7 +33,7 @@ export default defineNuxtConfig({
   ssr: false,
   modules: ['@owdproject/nuxt'],
   desktop: {
-    theme: '@dxlliv/owd-theme-nuxt-win95',
+    theme: '@owdproject/nuxt-theme-win95',
   },
 })
 ```

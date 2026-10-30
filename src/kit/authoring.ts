@@ -1,4 +1,10 @@
-import type { DesktopConfig } from '../types'
+import type {
+  DesktopConfig,
+  DesktopExtensionDirs,
+  DesktopExtensionKind,
+  DesktopExtensionMeta,
+  DesktopFramework,
+} from '../types'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -14,6 +20,53 @@ import { defu } from 'defu'
 /** Root `desktop.config.ts` helper — keep this file free of `import.meta` for jiti. */
 export function defineDesktopConfig(config: DesktopConfig) {
   return config
+}
+
+/**
+ * Default directories a desktop distribution collects extensions from, relative to its
+ * root. A Nuxt desktop uses `apps/`, `modules/` and `themes/`; the monorepo keeps
+ * framework modules under `packages/`, so both slots are listed.
+ */
+export const DESKTOP_EXTENSION_DIRS: DesktopExtensionDirs = {
+  apps: ['apps'],
+  modules: ['modules', 'packages'],
+  themes: ['themes'],
+}
+
+const FRAMEWORK_SEGMENTS: readonly DesktopFramework[] = [
+  'nuxt',
+  'vue',
+  'react',
+  'svelte',
+  'angular',
+  'astro',
+]
+
+const KIND_SEGMENTS: readonly DesktopExtensionKind[] = [
+  'app',
+  'module',
+  'theme',
+  'kit',
+]
+
+/**
+ * Parses a framework-first extension short name (`nuxt-app-todo`, `react-theme-win95`)
+ * into its parts. Legacy names without a framework segment (`app-todo`) are accepted
+ * with `framework` left undefined. Returns `null` when the kind is unknown.
+ */
+export function parseDesktopExtensionName(shortName: string): {
+  framework?: DesktopFramework
+  kind: DesktopExtensionKind
+  name: string
+} | null {
+  const parts = shortName.split('-')
+  let framework: DesktopFramework | undefined
+  if (FRAMEWORK_SEGMENTS.includes(parts[0] as DesktopFramework)) {
+    framework = parts.shift() as DesktopFramework
+  }
+  const kind = parts[0] as DesktopExtensionKind
+  if (!KIND_SEGMENTS.includes(kind)) return null
+  return { framework, kind, name: parts.slice(1).join('-') }
 }
 
 /**
@@ -191,10 +244,12 @@ export function mergeDesktopExtensionConfig(
   desktop[configKey] = defu(partial, base)
 }
 
+type ExtensionMetaLike = Partial<DesktopExtensionMeta> & { configKey?: string }
+
 type ModuleLike = {
-  meta?: { configKey?: string }
-  default?: { meta?: { configKey?: string } }
-  getMeta?: () => Promise<{ configKey?: string } | undefined>
+  meta?: ExtensionMetaLike
+  default?: { meta?: ExtensionMetaLike }
+  getMeta?: () => Promise<ExtensionMetaLike | undefined>
 }
 
 async function readConfigKey(mod: ModuleLike | undefined): Promise<string | undefined> {
@@ -215,6 +270,47 @@ async function readConfigKey(mod: ModuleLike | undefined): Promise<string | unde
 
   const key = meta?.configKey
   return typeof key === 'string' && key.length > 0 ? key : undefined
+}
+
+/**
+ * Reads the declarative extension contract (`kind`, `framework`, `adapter`, …) from a
+ * package's Nuxt module `meta`. Build-time only — no runtime imports. Used to keep the
+ * collection contract framework-agnostic across desktop distributions.
+ */
+export async function readExtensionMeta(
+  modulePath: string,
+): Promise<Partial<DesktopExtensionMeta>> {
+  const meta = (await loadModuleDescriptor(modulePath))?.meta ?? {}
+  return {
+    kind: meta.kind,
+    framework: meta.framework,
+    packageName: meta.packageName,
+    configKey: meta.configKey,
+    entry: meta.entry,
+    adapter: meta.adapter,
+    requires: meta.requires,
+  }
+}
+
+/**
+ * Validates an extension contract and returns a normalized copy. Throws on an unknown
+ * kind/framework so misconfigured extensions fail at build time instead of at runtime.
+ */
+export function assertDesktopExtensionMeta(
+  meta: Partial<DesktopExtensionMeta>,
+  packageName = 'unknown',
+): DesktopExtensionMeta {
+  if (!meta.kind || !KIND_SEGMENTS.includes(meta.kind)) {
+    throw new Error(
+      `[@owdproject/nuxt] ${packageName}: extension meta.kind must be one of ${KIND_SEGMENTS.join(', ')}.`,
+    )
+  }
+  if (!meta.framework || !FRAMEWORK_SEGMENTS.includes(meta.framework)) {
+    throw new Error(
+      `[@owdproject/nuxt] ${packageName}: extension meta.framework must be one of ${FRAMEWORK_SEGMENTS.join(', ')}.`,
+    )
+  }
+  return meta as DesktopExtensionMeta
 }
 
 async function loadModuleDescriptor(
@@ -259,7 +355,7 @@ export async function installDesktopPackage(
 type DesktopModuleMeta = {
   name: string
   configKey: string
-}
+} & Partial<Omit<DesktopExtensionMeta, 'configKey'>>
 
 type DesktopModuleDefinition = NuxtModule<
   Record<string, unknown>,

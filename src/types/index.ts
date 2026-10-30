@@ -82,7 +82,57 @@ export interface DesktopConfig {
   apps?: string[]
   modules?: string[]
   coreVersion?: string
+  /** Directories a desktop distribution collects extensions from (see {@link DesktopExtensionDirs}). */
+  collect?: DesktopExtensionDirs
   [key: string]: any
+}
+
+/** Extension kinds a desktop distribution can collect. */
+export type DesktopExtensionKind = 'app' | 'module' | 'theme' | 'kit'
+
+/** Framework adapters an OWD extension can target (framework-first naming). */
+export type DesktopFramework =
+  | 'nuxt'
+  | 'vue'
+  | 'react'
+  | 'svelte'
+  | 'angular'
+  | 'astro'
+
+/**
+ * Directories a desktop distribution collects extensions from, relative to its root.
+ * Convention: one directory per extension kind. The monorepo keeps framework modules
+ * under `packages/`, so the `modules` slot lists both.
+ */
+export interface DesktopExtensionDirs {
+  apps: string[]
+  modules: string[]
+  themes: string[]
+}
+
+/**
+ * Minimal declarative contract for a desktop extension. Published extensions surface
+ * it through their Nuxt module `meta` (read at build time by `installDesktopPackage`),
+ * so any framework desktop can classify the package without hard-coding package lists.
+ *
+ * Package naming convention: `<framework>-<kind>-<name>` (e.g. `@owdproject/nuxt-app-todo`,
+ * `@owdproject/react-theme-win95`).
+ */
+export interface DesktopExtensionMeta {
+  /** Extension kind. */
+  kind: DesktopExtensionKind
+  /** Framework the extension is built for. */
+  framework: DesktopFramework
+  /** Full package name, e.g. `@owdproject/nuxt-app-todo`. */
+  packageName?: string
+  /** Runtime namespace on `runtimeConfig.public.desktop[...]`. */
+  configKey?: string
+  /** Build-time entry (Nuxt module). Defaults to the package root export. */
+  entry?: string
+  /** Framework adapter required at runtime, e.g. `@owdproject/nuxt`. */
+  adapter?: string
+  /** Kits/modules the extension expects the active theme or desktop to provide. */
+  requires?: string[]
 }
 
 export interface IWindowController extends IDesktopWindowController {
