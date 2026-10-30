@@ -24,7 +24,7 @@
 
 `@owdproject/nuxt` (`4.0.0-alpha.0`) bridges [`@owdproject/core`](https://npmjs.com/package/@owdproject/core) to Vue 3 and Nuxt via `shallowRef` subscriptions, computed selectors, and automatic `onScopeDispose` cleanup.
 
-The package includes the Nuxt module, `desktop.config.ts` support, shell components, and Vue bindings. It does not require `nuxt-desktop`.
+The package includes the Nuxt module, `desktop.config.ts` support, shell components, and Vue bindings.
 
 Register it in `nuxt.config.ts`:
 
