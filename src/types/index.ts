@@ -131,7 +131,7 @@ export interface DesktopExtensionMeta {
   entry?: string
   /** Framework adapter required at runtime, e.g. `@owdproject/nuxt`. */
   adapter?: string
-  /** Kits/modules the extension expects the active theme or desktop to provide. */
+  /** Exact identities of kits/modules already installed by the active Nuxt host; no version ranges. */
   requires?: string[]
 }
 

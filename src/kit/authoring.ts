@@ -11,7 +11,7 @@ import { join } from 'node:path'
 import {
   defineNuxtModule,
   installModule,
-  resolvePath,
+  loadNuxtModuleInstance,
   type NuxtModule,
 } from '@nuxt/kit'
 import type { Nuxt } from '@nuxt/schema'
@@ -244,58 +244,34 @@ export function mergeDesktopExtensionConfig(
   desktop[configKey] = defu(partial, base)
 }
 
-type ExtensionMetaLike = Partial<DesktopExtensionMeta> & { configKey?: string }
+const EXTENSION_META_KEYS = [
+  'kind', 'framework', 'packageName', 'configKey', 'entry', 'adapter', 'requires',
+] as const
 
-type ModuleLike = {
-  meta?: ExtensionMetaLike
-  default?: { meta?: ExtensionMetaLike }
-  getMeta?: () => Promise<ExtensionMetaLike | undefined>
-}
-
-async function readConfigKey(mod: ModuleLike | undefined): Promise<string | undefined> {
-  if (!mod) return undefined
-
-  let meta = mod.meta ?? mod.default?.meta
-
-  if (!meta) {
-    const getMeta = mod.getMeta ?? (mod as any).default?.getMeta
-    if (typeof getMeta === 'function') {
-      try {
-        meta = await getMeta()
-      } catch (e) {
-        console.warn('[@owdproject/nuxt] failed to call getMeta():', e)
-      }
-    }
+/** Read the same module entry and getMeta() metadata that Nuxt's installer uses. */
+async function loadModuleMeta(modulePath: string, nuxt?: Nuxt): Promise<Record<string, unknown>> {
+  const { nuxtModule, buildTimeModuleMeta } = await loadNuxtModuleInstance(modulePath, nuxt)
+  const descriptor = nuxtModule as typeof nuxtModule & { meta?: unknown }
+  const declared = typeof descriptor.getMeta === 'function'
+    ? await descriptor.getMeta()
+    : descriptor.meta
+  if (declared !== undefined && (!declared || typeof declared !== 'object' || Array.isArray(declared))) {
+    throw new Error(`[@owdproject/nuxt] ${modulePath}: module metadata must be an object.`)
   }
-
-  const key = meta?.configKey
-  return typeof key === 'string' && key.length > 0 ? key : undefined
+  // Preserve explicitly malformed values (including null) for validation below.
+  return { ...buildTimeModuleMeta, ...declared } as Record<string, unknown>
 }
 
-/**
- * Reads the declarative extension contract (`kind`, `framework`, `adapter`, …) from a
- * package's Nuxt module `meta`. Build-time only — no runtime imports. Used to keep the
- * collection contract framework-agnostic across desktop distributions.
- */
+/** Reads build-time extension metadata using Nuxt module resolution and getMeta(). */
 export async function readExtensionMeta(
   modulePath: string,
+  nuxt?: Nuxt,
 ): Promise<Partial<DesktopExtensionMeta>> {
-  const meta = (await loadModuleDescriptor(modulePath))?.meta ?? {}
-  return {
-    kind: meta.kind,
-    framework: meta.framework,
-    packageName: meta.packageName,
-    configKey: meta.configKey,
-    entry: meta.entry,
-    adapter: meta.adapter,
-    requires: meta.requires,
-  }
+  const meta = await loadModuleMeta(modulePath, nuxt)
+  return Object.fromEntries(EXTENSION_META_KEYS.map(key => [key, meta[key]])) as Partial<DesktopExtensionMeta>
 }
 
-/**
- * Validates an extension contract and returns a normalized copy. Throws on an unknown
- * kind/framework so misconfigured extensions fail at build time instead of at runtime.
- */
+/** Validates the declared contract; this alone does not check the host integration. */
 export function assertDesktopExtensionMeta(
   meta: Partial<DesktopExtensionMeta>,
   packageName = 'unknown',
@@ -310,46 +286,64 @@ export function assertDesktopExtensionMeta(
       `[@owdproject/nuxt] ${packageName}: extension meta.framework must be one of ${FRAMEWORK_SEGMENTS.join(', ')}.`,
     )
   }
-  return meta as DesktopExtensionMeta
+  for (const key of ['packageName', 'configKey', 'entry', 'adapter'] as const) {
+    if (meta[key] !== undefined && (typeof meta[key] !== 'string' || !meta[key].trim())) {
+      throw new Error(`[@owdproject/nuxt] ${packageName}: extension meta.${key} must be a non-empty string.`)
+    }
+  }
+  if (meta.requires !== undefined && (!Array.isArray(meta.requires) || !meta.requires.every(
+    requirement => typeof requirement === 'string' && requirement.trim().length > 0,
+  ))) {
+    throw new Error(`[@owdproject/nuxt] ${packageName}: extension meta.requires must be an array of non-empty module/kit names.`)
+  }
+  return { ...meta } as DesktopExtensionMeta
 }
 
-async function loadModuleDescriptor(
+function assertDesktopExtensionHost(
+  meta: DesktopExtensionMeta,
   modulePath: string,
-): Promise<ModuleLike | undefined> {
-  try {
-    const resolvedPath = await resolvePath(modulePath)
-    const imported = await import(resolvedPath)
-    return (imported as { default?: ModuleLike }).default ?? imported
-  } catch (e) {
-    console.warn(`[@owdproject/nuxt] loadModuleDescriptor failed for "${modulePath}":`, e)
-    return undefined
+  nuxt: Nuxt,
+): void {
+  if (meta.framework !== 'nuxt') {
+    throw new Error(`[@owdproject/nuxt] ${modulePath}: framework "${meta.framework}" is incompatible with the Nuxt host.`)
+  }
+  if (meta.adapter !== undefined && meta.adapter !== '@owdproject/nuxt') {
+    throw new Error(`[@owdproject/nuxt] ${modulePath}: adapter "${meta.adapter}" is incompatible with @owdproject/nuxt.`)
+  }
+  for (const requirement of meta.requires ?? []) {
+    // Configured modules and resolvable packages are not evidence of installed integration.
+    // Nuxt records nested installModule() calls too (e.g. kits installed by a theme).
+    const installed = nuxt.options._installedModules?.some(({ meta, entryPath }) => {
+      if (meta.disabled) return false
+      return [meta.name, meta.packageName, meta.rawPath, entryPath].includes(requirement)
+    })
+    if (!installed) {
+      throw new Error(`[@owdproject/nuxt] ${modulePath}: required kit/module "${requirement}" is not active. Install it through the theme or host before this extension.`)
+    }
   }
 }
 
 /**
- * Installs a desktop theme, module, or app package.
- * When the package exposes `meta.configKey`, passes `desktop[configKey]` to `installModule`
- * so Nuxt merges desktop.config with module defaults.
+ * Installs a desktop theme, module, or app after checking explicit extension metadata.
+ * Ordinary Nuxt modules and older name/configKey-only descriptors remain supported.
  */
 export async function installDesktopPackage(
   nuxt: Nuxt,
   modulePath: string,
   desktop?: Record<string, unknown>,
 ): Promise<void> {
-  const descriptor = await loadModuleDescriptor(modulePath)
-  const configKey = await readConfigKey(descriptor)
-
-  if (configKey && desktop) {
-    const slice = desktop[configKey]
-    const inline =
-      slice && typeof slice === 'object' && !Array.isArray(slice)
-        ? (slice as Record<string, unknown>)
-        : {}
-    await installModule(modulePath, inline)
-    return
+  const meta = await loadModuleMeta(modulePath, nuxt)
+  // configKey alone is ordinary Nuxt metadata, not an opt-in to the extension contract.
+  if (EXTENSION_META_KEYS.some(key => key !== 'configKey' && key in meta)) {
+    const extension = assertDesktopExtensionMeta(meta as Partial<DesktopExtensionMeta>, modulePath)
+    assertDesktopExtensionHost(extension, modulePath, nuxt)
   }
-
-  await installModule(modulePath)
+  const configKey = typeof meta.configKey === 'string' && meta.configKey.length > 0 ? meta.configKey : undefined
+  const slice = configKey && desktop ? desktop[configKey] : undefined
+  const inline = slice && typeof slice === 'object' && !Array.isArray(slice)
+    ? slice as Record<string, unknown>
+    : undefined
+  await installModule(modulePath, configKey && desktop ? inline ?? {} : undefined, nuxt)
 }
 
 type DesktopModuleMeta = {
