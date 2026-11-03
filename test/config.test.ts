@@ -22,4 +22,14 @@ describe('Nuxt desktop configuration', () => {
     expect(() => mergeDesktopConfig({ apps: 'terminal' } as any, {}, 'test'))
       .toThrow('nuxt.config.ts desktop options')
   })
+
+  it('preserves stable desktop ids and rejects values that cannot be isolated safely', () => {
+    for (const id of ['foo.bar', 'foo-bar', 'Marco_OWD']) {
+      expect(mergeDesktopConfig({ id }, {}, 'test').id).toBe(id)
+    }
+    for (const id of ['', 'bad/id', ' white space ', 'x'.repeat(65), 123]) {
+      expect(() => mergeDesktopConfig({ id } as any, {}, 'test')).toThrow('`id`')
+    }
+  })
+
 })

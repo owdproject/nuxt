@@ -12,30 +12,40 @@ export function useApplicationWindowsStore(appId: string) {
   let storeFactory = windowsStoreRegistry.get(appId)
 
   if (!storeFactory) {
-    storeFactory = defineStore(applicationWindowsStoreId(appId), () => {
-      const windows = reactive<Record<string, WindowStoredState>>({})
+    storeFactory = defineStore(
+      applicationWindowsStoreId(appId),
+      () => {
+        const windows = reactive<Record<string, WindowStoredState>>({})
 
-      function setWindowState(windowId: string, stored: WindowStoredState) {
-        windows[windowId] = stored
-      }
-
-      function removeWindowState(windowId: string) {
-        delete windows[windowId]
-      }
-
-      function clearWindows() {
-        for (const key of Object.keys(windows)) {
-          delete windows[key]
+        function setWindowState(windowId: string, stored: WindowStoredState) {
+          windows[windowId] = stored
         }
-      }
 
-      return {
-        windows,
-        setWindowState,
-        removeWindowState,
-        clearWindows,
-      }
-    })
+        function removeWindowState(windowId: string) {
+          delete windows[windowId]
+        }
+
+        function clearWindows() {
+          for (const key of Object.keys(windows)) {
+            delete windows[key]
+          }
+        }
+
+        return {
+          windows,
+          setWindowState,
+          removeWindowState,
+          clearWindows,
+        }
+      },
+      {
+        // Inert unless an optional persistence module registers the adapter.
+        // @ts-expect-error pinia-plugin-persistedstate-2 store option
+        persistedState: {
+          persist: true,
+        },
+      },
+    )
     windowsStoreRegistry.set(appId, storeFactory)
   }
 

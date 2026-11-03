@@ -82,6 +82,12 @@ export interface DesktopConfig {
   apps?: string[]
   modules?: string[]
   coreVersion?: string
+  /**
+   * Stable identity of this desktop distribution (e.g. `'atproto-os'`).
+   * Namespaces the persisted profile (AT Protocol record rkeys and local
+   * IndexedDB keys) so two different OWD products never share state.
+   */
+  id?: string
   /** Directories a desktop distribution collects extensions from (see {@link DesktopExtensionDirs}). */
   collect?: DesktopExtensionDirs
   [key: string]: any
@@ -158,6 +164,8 @@ export interface IApplicationController {
   readonly isReady: boolean
 
   initApplication(): Promise<void>
+  /** Restore saved windows without duplicating already-open controllers. */
+  restoreApplication(): Promise<boolean>
   openWindow(
     model: string,
     storedState?: import('@owdproject/core').WindowStoredState,

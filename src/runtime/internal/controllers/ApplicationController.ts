@@ -1,4 +1,4 @@
-import { markRaw, reactive, shallowRef } from 'vue'
+import { markRaw, reactive, shallowRef, shallowReactive } from 'vue'
 import { createActor } from 'xstate'
 import { nanoid } from 'nanoid'
 import {
@@ -39,7 +39,7 @@ function formatAppSnapshotValue(value: unknown): string {
 export class ApplicationController implements IApplicationController {
   public readonly id: string
   public readonly config: ApplicationConfig
-  public readonly windows = new Map<string, IWindowController>()
+  public readonly windows = shallowReactive(new Map<string, IWindowController>())
   public readonly openWindowCount = shallowRef<number>(0)
 
   public storeWindows: ReturnType<typeof useApplicationWindowsStore> | undefined
@@ -195,11 +195,56 @@ export class ApplicationController implements IApplicationController {
         )
       }
 
+      // When an optional persistence module (pinia-persistence / atproto-persistence)
+      // registers the Pinia adapter, wait for the preserved window/meta state to
+      // hydrate before declaring the app ready, then reopen the previous windows.
+      const storeWindows = this.storeWindows as any
+      if (storeWindows?.$persistedState) {
+        await storeWindows.$persistedState.isReady()
+      }
+      const storeMeta = this.storeMeta as any
+      if (storeMeta?.$persistedState) {
+        await storeMeta.$persistedState.isReady()
+      }
+      await this.restoreApplication()
+
       this.appActor.send({ type: 'INITIALIZED' })
       await this.config.onReady?.(this)
     } catch (err) {
       this.appActor.send({ type: 'INIT_FAILED' })
       console.error(`[@owdproject/nuxt] Failed to init app "${this.id}":`, err)
+    }
+  }
+
+  /**
+   * Reopen the windows persisted in this application's window store. Returns
+   * `true` when at least one window was restored. No-op without a persistence
+   * adapter (the window store is then always empty at boot).
+   */
+  public async restoreApplication(): Promise<boolean> {
+    if (typeof this.config.onRestore === 'function') {
+      await this.config.onRestore(this)
+    }
+
+    const windows = (this.storeWindows as any)?.windows
+    if (!windows || Object.keys(windows).length === 0) {
+      return false
+    }
+
+    this.restoreWindows()
+    return true
+  }
+
+  private restoreWindows(): void {
+    const windows = (this.storeWindows as any)?.windows
+    if (!windows) return
+
+    for (const windowId of Object.keys(windows)) {
+      if (this.windows.has(windowId)) continue
+      const storedState = windows[windowId] as WindowStoredState | undefined
+      if (storedState?.model) {
+        this.openWindow(storedState.model, storedState)
+      }
     }
   }
 

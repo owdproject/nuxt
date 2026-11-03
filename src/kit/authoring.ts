@@ -85,6 +85,12 @@ export function assertValidDesktopUserConfig(
 
   const c = config as Record<string, unknown>
 
+  if (c.id != null && (typeof c.id !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(c.id))) {
+    throw new Error(
+      `[@owdproject/nuxt] ${configFile}: \`id\` must be a stable identifier of 1–64 ASCII letters, digits, dots, underscores or hyphens, starting with a letter or digit (e.g. 'atproto-os').`,
+    )
+  }
+
   if (c.theme != null && typeof c.theme !== 'string') {
     throw new Error(
       `[@owdproject/nuxt] ${configFile}: \`theme\` must be a string (npm package name or local path of the theme module).`,

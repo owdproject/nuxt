@@ -67,6 +67,13 @@ export const useDesktopNotificationStore = defineStore(
       markAllAsRead,
     }
   },
+  {
+    // Inert unless an optional persistence module registers the adapter.
+    // @ts-expect-error pinia-plugin-persistedstate-2 store option
+    persistedState: {
+      persist: true,
+    },
+  },
 )
 
 export const useNotificationStore = useDesktopNotificationStore

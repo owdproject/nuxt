@@ -11,7 +11,9 @@ export const EMPTY_DESKTOP_WORKAREA: DesktopWorkareaRect = {
   height: 0,
 }
 
-export const useDesktopWorkspaceStore = defineStore('desktop/workspace', () => {
+export const useDesktopWorkspaceStore = defineStore(
+  'desktop/workspace',
+  () => {
   const list = ref<string[]>([
     'workspace-1',
     'workspace-2',
@@ -104,4 +106,14 @@ export const useDesktopWorkspaceStore = defineStore('desktop/workspace', () => {
     removeWorkspace,
     resolveWorkspaceFallback,
   }
-})
+  },
+  {
+    // Inert unless an optional persistence module registers the adapter.
+    // @ts-expect-error pinia-plugin-persistedstate-2 store option
+    persistedState: {
+      persist: true,
+      // `overview` and `workarea` are runtime-only.
+      includePaths: ['list', 'active'],
+    },
+  },
+)

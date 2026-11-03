@@ -104,7 +104,53 @@ onMounted(() => {
   if (windowRef.value) {
     dragHandleRef.value = windowRef.value.querySelector('.desktop-window-nav__draggable') as HTMLElement
   }
+  clampIntoWorkarea()
 })
+
+/**
+ * Keep every window inside the workarea. Restored windows can carry a position
+ * saved on a larger screen, which leaves their title bar (and close button)
+ * off-screen and unreachable. Re-clamp whenever the workarea is known/changes.
+ */
+function clampIntoWorkarea() {
+  const area = desktopWorkspaceStore.workarea
+  if (!area || area.width <= 0 || area.height <= 0) return
+
+  const state = windowController?.state
+  if (!state || state.maximized) return
+
+  const size = state.size ?? {}
+  const rect = windowRef.value?.getBoundingClientRect()
+  const width = typeof size.width === 'number' ? size.width : rect?.width
+  const height = typeof size.height === 'number' ? size.height : rect?.height
+  if (!width || !height || !Number.isFinite(width) || !Number.isFinite(height)) return
+  const nextWidth = Math.min(width, area.width)
+  const nextHeight = Math.min(height, area.height)
+
+  const pos = state.position ?? {}
+  const maxX = area.x + area.width - nextWidth
+  const maxY = area.y + area.height - nextHeight
+  const nextX = Math.min(Math.max(pos.x ?? area.x, area.x), maxX)
+  const nextY = Math.min(Math.max(pos.y ?? area.y, area.y), maxY)
+
+  if (nextWidth !== width || nextHeight !== height) {
+    windowController.actions.setSize({ width: nextWidth, height: nextHeight })
+  }
+  if (nextX !== pos.x || nextY !== pos.y) {
+    windowController.actions.setPosition({ x: nextX, y: nextY })
+  }
+}
+
+watch(
+  () => [
+    desktopWorkspaceStore.workarea.x,
+    desktopWorkspaceStore.workarea.y,
+    desktopWorkspaceStore.workarea.width,
+    desktopWorkspaceStore.workarea.height,
+  ],
+  () => clampIntoWorkarea(),
+  { immediate: true },
+)
 
 // Setup VueUse useDraggable
 const { x, y } = useDraggable(windowRef, {

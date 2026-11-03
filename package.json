@@ -1,6 +1,6 @@
 {
   "name": "@owdproject/nuxt",
-  "version": "4.0.0-alpha.3",
+  "version": "4.0.0-alpha.4",
   "description": "Official Nuxt & Vue desktop engine for OpenWebDesktop",
   "homepage": "https://github.com/owdproject/nuxt#readme",
   "repository": {
@@ -112,7 +112,8 @@
   },
   "scripts": {
     "build": "nuxt-module-build build && node ./scripts/post-build-pkg-nuxt.mjs",
-    "prepack": "nuxt-module-build build && node ./scripts/post-build-pkg-nuxt.mjs"
+    "prepack": "nuxt-module-build build && node ./scripts/post-build-pkg-nuxt.mjs",
+    "test:persistence": "vitest run test/config.test.ts test/persistence-windows.test.ts"
   },
   "dependencies": {
     "@nuxt/fonts": "^1.2.0",
@@ -143,5 +144,10 @@
     "nuxt": {
       "optional": true
     }
+  },
+  "devDependencies": {
+    "vitest": "^4.1.12",
+    "pinia-plugin-persistedstate-2": "^2.0.30",
+    "vue": "^3.5.44"
   }
 }
